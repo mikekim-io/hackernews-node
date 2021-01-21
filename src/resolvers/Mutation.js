@@ -45,18 +45,51 @@ async function login(parent, args, context, info) {
 async function post(parent, args, context, info) {
   const { userId } = context;
 
-  return await context.prisma.link.create({
+  const newLink = await context.prisma.link.create({
     data: {
       description: args.description,
       url: args.url,
       postedBy: { connect: { id: userId } },
     },
   });
+  //implement subscription of "NEW_LINK" event, returns the newLink to subscriber
+  context.pubsub.publish('NEW_LINK', newLink);
+  //returns newLink to publisher
+  return newLink;
 }
 /* Using userId to connect the Link to be created with the User who is creating it. This is happening through a nested write. */
+
+async function vote(parent, args, context, info) {
+  //1 validate incoming jwt with getUserId - will throw exception if not valid
+  const userId = getUserId(context);
+  //2 no double voting - if already exists, returns error message : already voted
+  const vote = await context.prisma.vote.findUnique({
+    where: {
+      linkId_userId: {
+        linkId: Number(args.linkId),
+        userId: userId,
+      },
+    },
+  });
+  if (Boolean(vote)) {
+    throw new Error(`Already voted for link: ${args.linkId}`);
+  }
+
+  //3 create new a vote, connecting User and Link
+  const newVote = context.prisma.vote.create({
+    data: {
+      user: { connect: { id: userId } },
+      link: { connect: { id: Number(args.linkId) } },
+    },
+  });
+  context.pubsub.publish('NEW_VOTE', newVote);
+
+  return newVote;
+}
 
 module.exports = {
   signup,
   login,
   post,
+  vote,
 };
