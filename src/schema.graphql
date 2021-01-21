@@ -1,10 +1,20 @@
 type Query {
   info: String!
-  feed: [Link!]!
+  feed(filter: String, skip: Int, take: Int, orderBy: LinkOrderByInput): Feed!
 
   # Fetch a single link by its `id`
   link(id: ID!): Link
 }
+
+type Feed {
+  links: [Link!]!
+  count: Int!
+}
+
+# Limit and offset have different names in the Prisma API:
+
+# The limit is called take, meaning you’re “taking” x elements after a provided start index.
+# The start index is called skip, since you’re skipping that many elements in the list before collecting the items to be returned. If skip is not provided, it’s 0 by default. The pagination then always starts from the beginning of the list. So, go ahead and add the skip and take arguments to the feed query.
 
 type Mutation {
   post(url: String!, description: String!): Link!
@@ -48,4 +58,15 @@ type User {
 type Subscription {
   newLink: Link
   newVote: Vote
+}
+
+input LinkOrderByInput {
+  description: Sort
+  url: Sort
+  createdAt: Sort
+}
+
+enum Sort {
+  asc
+  desc
 }
